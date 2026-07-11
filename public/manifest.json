@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Guitarigz: Fret & Theory Studio",
+  "short_name": "Guitarigz",
+  "version": "1.0.0",
+  "description": "Interactive guitar and bass music theory visualizer, chord builder, custom tunings, metronome, and interactive synthesizers.",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Guitarigz: Fret & Theory Studio",
+    "default_icon": {
+      "16": "logo.svg",
+      "32": "logo.svg",
+      "48": "logo.svg",
+      "128": "logo.svg"
+    }
+  },
+  "icons": {
+    "16": "logo.svg",
+    "32": "logo.svg",
+    "48": "logo.svg",
+    "128": "logo.svg"
+  },
+  "permissions": [
+    "activeTab"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
