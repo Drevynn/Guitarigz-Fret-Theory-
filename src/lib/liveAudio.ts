@@ -408,6 +408,23 @@ export function stopRecording(presetName?: string): void {
     a.download = name;
     a.click();
     URL.revokeObjectURL(url);
+
+    // Convert blob to base64 and export back to parent DAW (e.g. MyRigz Studio / SONAR)
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = () => {
+      const base64data = reader.result as string;
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: "sonar:import",
+          audio_blob_base64: base64data,
+          filename: name,
+          mimetype: blob.type
+        }, "*");
+        console.log(`[PluginBridge] Exported recording to parent DAW via postMessage: ${name}`);
+      }
+    };
+
     recordingChunks = [];
   };
   mediaRecorder.stop();

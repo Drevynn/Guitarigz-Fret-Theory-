@@ -18,6 +18,7 @@ import CustomTuningEditor from './components/CustomTuningEditor';
 import PluginBridge from './components/PluginBridge';
 import HelpGuide from './components/HelpGuide';
 import Metronome from './components/Metronome';
+import ExtensionsStore from './components/ExtensionsStore';
 import { STANDARD_TUNINGS, BASS_4_TUNINGS, BASS_5_TUNINGS, SCALE_FORMULAS, CHROMATIC_NOTES_SHARP, keyPrefersFlats } from './utils/theory';
 import { initAudio, toggleAudioMute, isAudioMuted, playNote } from './utils/audio';
 import {
@@ -33,7 +34,8 @@ import {
   Info,
   LogOut,
   Link,
-  Settings
+  Settings,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -217,6 +219,39 @@ export default function App() {
     }
   };
 
+  // Standalone Guitar Lessons purchase state (only the lessons part, not the sound effects part)
+  const [hasGuitarStandalone, setHasGuitarStandalone] = useState<boolean>(() => {
+    return localStorage.getItem('myrigz_guitar_standalone') === 'true';
+  });
+
+  const handleBuyGuitarStandalone = () => {
+    localStorage.setItem('myrigz_guitar_standalone', 'true');
+    setHasGuitarStandalone(true);
+  };
+
+  const handleRefundGuitarStandalone = () => {
+    localStorage.setItem('myrigz_guitar_standalone', 'false');
+    setHasGuitarStandalone(false);
+  };
+
+  // Active monthly lesson subscriptions (e.g. 'addon_acoustic', 'addon_blues_jazz')
+  const [activeSubscriptions, setActiveSubscriptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('myrigz_active_subscriptions');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleToggleSubscription = (subId: string) => {
+    setActiveSubscriptions(prev => {
+      const updated = prev.includes(subId) ? prev.filter(id => id !== subId) : [...prev, subId];
+      localStorage.setItem('myrigz_active_subscriptions', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   // 1. Shared state coordinates
   const [activeRoot, setActiveRoot] = useState<NoteName>('C');
   const [activeScale, setActiveScale] = useState<ScaleType>('major');
@@ -243,7 +278,7 @@ export default function App() {
   >(null);
 
   // Active dashboard view tab
-  const [activeTab, setActiveTab] = useState<'progressions' | 'fifths' | 'caged' | 'quiz' | 'studio' | 'plugin' | 'guide' | 'metronome'>('progressions');
+  const [activeTab, setActiveTab] = useState<'progressions' | 'fifths' | 'caged' | 'quiz' | 'studio' | 'plugin' | 'guide' | 'metronome' | 'apps'>('progressions');
 
   // External active MIDI/DAW note tracking
   const [externalActiveNotes, setExternalActiveNotes] = useState<number[]>([]);
@@ -804,6 +839,23 @@ export default function App() {
                 <Settings size={14} className={activeTab === 'metronome' ? theme.tabIcon : 'text-slate-500'} />
                 <span>⏱ Metronome</span>
               </button>
+
+              {/* Tab: Connected Apps */}
+              <button
+                id="tab-apps"
+                onClick={() => {
+                  setActiveTab('apps');
+                  setActiveVoicingPoints(null); // release chord builder locks
+                }}
+                className={`py-3.5 px-4 font-display font-bold text-xs tracking-wide uppercase border-b-2 transition-all flex items-center gap-2 relative ${
+                  activeTab === 'apps'
+                    ? theme.tabActive
+                    : `border-transparent ${theme.textSecondary} hover:text-slate-200 hover:border-slate-800`
+                }`}
+              >
+                <Globe size={14} className={activeTab === 'apps' ? theme.tabIcon : 'text-slate-500'} />
+                <span>🌐 Apps</span>
+              </button>
             </div>
             
             {/* status feedback text */}
@@ -830,6 +882,7 @@ export default function App() {
                     onFilterChord={handleFilterChord}
                     selectedChordRoot={activeChordRoot}
                     selectedChordType={activeChordType}
+                    unlockedAddons={activeSubscriptions}
                   />
                 </motion.div>
               )}
@@ -912,6 +965,134 @@ export default function App() {
                 </motion.div>
               )}
 
+              {activeTab === 'apps' && (
+                <motion.div
+                  key="apps-panel"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex flex-col gap-6">
+                    {/* Header bar / description */}
+                    <div className="bg-slate-950/40 p-6 rounded-3xl border border-slate-850 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-display font-black text-lg text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                          <Globe className="text-amber-500 h-5 w-5 animate-pulse" />
+                          MyRigz Connected Studio Hub
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                          Access and synchronize your suite of audio and educational tools inside a single responsive dashboard. Real-time recordings from the <span className="text-amber-500 font-semibold">AI Rack Studio</span> will automatically prompt as <code className="text-amber-400">postMessage</code> payloads back to your active parent DAW context when loaded inside an iframe!
+                        </p>
+                      </div>
+                      <a
+                        href="https://github.com/Drevynn/MyRigz-Studio/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/30 text-amber-500 text-xs font-bold rounded-xl transition-all flex items-center gap-2 self-start md:self-auto cursor-pointer shadow-lg hover:shadow-amber-500/5"
+                      >
+                        <svg className="h-4 w-4 fill-current text-amber-500" viewBox="0 0 24 24">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+                        </svg>
+                        <span>MyRigz-Studio Repo</span>
+                      </a>
+                    </div>
+
+                    {/* Multi-app Iframe grid */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                      {/* Column 1: Fret Theory Bass Edition */}
+                      <div className="bg-slate-950/40 p-4 rounded-3xl border border-slate-850 flex flex-col gap-3 shadow-md h-[550px]">
+                        <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-amber-500 text-[10px] font-mono font-bold">BASS</span>
+                            <h4 className="font-bold text-xs text-slate-200">Fret Theory Bass Edition</h4>
+                          </div>
+                          <a
+                            href={`https://fret-theory-bass-edition-${typeof window !== 'undefined' && window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/) ? window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/)?.[1] : '425151855682'}.us-west1.run.app`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-amber-500 hover:underline font-mono font-bold"
+                          >
+                            OPEN ↗
+                          </a>
+                        </div>
+                        <div className="flex-1 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 relative">
+                          <iframe
+                            src={`https://fret-theory-bass-edition-${typeof window !== 'undefined' && window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/) ? window.location.hostname.match(/-(\d+)\.us-west1\.run.app/)?.[1] : '425151855682'}.us-west1.run.app`}
+                            className="w-full h-full rounded-xl"
+                            title="Fret Theory Bass Edition"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Column 2: Hum Drum */}
+                      <div className="bg-slate-950/40 p-4 rounded-3xl border border-slate-850 flex flex-col gap-3 shadow-md h-[550px]">
+                        <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-emerald-500 text-[10px] font-mono font-bold">DRUM</span>
+                            <h4 className="font-bold text-xs text-slate-200">Hum Drum</h4>
+                          </div>
+                          <a
+                            href={`https://hum-drum-${typeof window !== 'undefined' && window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/) ? window.location.hostname.match(/-(\d+)\.us-west1\.run.app/)?.[1] : '425151855682'}.us-west1.run.app`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-amber-500 hover:underline font-mono font-bold"
+                          >
+                            OPEN ↗
+                          </a>
+                        </div>
+                        <div className="flex-1 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 relative">
+                          <iframe
+                            src={`https://hum-drum-${typeof window !== 'undefined' && window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/) ? window.location.hostname.match(/-(\d+)\.us-west1\.run.app/)?.[1] : '425151855682'}.us-west1.run.app`}
+                            className="w-full h-full rounded-xl"
+                            title="Hum Drum"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Column 3: MyRigz Studio SaaS DAW */}
+                      <div className="bg-slate-950/40 p-4 rounded-3xl border border-slate-850 flex flex-col gap-3 shadow-md h-[550px]">
+                        <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/20 rounded text-rose-500 text-[10px] font-mono font-bold">DAW</span>
+                            <h4 className="font-bold text-xs text-slate-200">MyRigz Studio (SaaS DAW)</h4>
+                          </div>
+                          <a
+                            href={`https://my-rigz-studio-${typeof window !== 'undefined' && window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/) ? window.location.hostname.match(/-(\d+)\.us-west1\.run.app/)?.[1] : '425151855682'}.us-west1.run.app`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-amber-500 hover:underline font-mono font-bold"
+                          >
+                            OPEN ↗
+                          </a>
+                        </div>
+                        <div className="flex-1 bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 relative flex flex-col">
+                          <iframe
+                            src={`https://my-rigz-studio-${typeof window !== 'undefined' && window.location.hostname.match(/-(\d+)\.us-west1\.run\.app/) ? window.location.hostname.match(/-(\d+)\.us-west1\.run.app/)?.[1] : '425151855682'}.us-west1.run.app`}
+                            className="w-full h-full rounded-xl flex-1"
+                            title="MyRigz Studio"
+                          />
+                          <div className="p-3.5 bg-slate-950/90 border-t border-slate-850 text-[10px] font-mono text-slate-400 leading-normal">
+                            <span className="text-amber-500 font-bold">Integration Status:</span> Real-time Audio Link is fully synced. Recording a jam inside <span className="text-slate-200">AI Rack Studio</span> will automatically import the WebM stem directly onto active tracks here!
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Integrated Extensions and Lessons Add-on Store */}
+                    <ExtensionsStore
+                      hasGuitarStandalone={hasGuitarStandalone}
+                      onBuyGuitarStandalone={handleBuyGuitarStandalone}
+                      onRefundGuitarStandalone={handleRefundGuitarStandalone}
+                      activeSubscriptions={activeSubscriptions}
+                      onToggleSubscription={handleToggleSubscription}
+                      userName={user?.name || 'Guitarist'}
+                      theme={theme}
+                    />
+                  </div>
+                </motion.div>
+              )}
+
               {activeTab === 'studio' && (
                 <motion.div
                   key="studio-panel"
@@ -987,7 +1168,7 @@ export default function App() {
           </div>
 
           {/* Ad Banner for free extension tier users */}
-          {!isPremium && activeTab !== 'studio' && activeTab !== 'plugin' && activeTab !== 'guide' && activeTab !== 'metronome' && (
+          {!isPremium && !hasGuitarStandalone && activeTab !== 'studio' && activeTab !== 'plugin' && activeTab !== 'guide' && activeTab !== 'metronome' && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

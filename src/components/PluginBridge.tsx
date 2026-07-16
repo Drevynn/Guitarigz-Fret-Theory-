@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NoteName, ScaleType, Tuning } from '../types';
 import {
   Link,
@@ -69,6 +69,8 @@ export default function PluginBridge({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isIframe, setIsIframe] = useState<boolean>(false);
   const [dawConnected, setDawConnected] = useState<boolean>(false);
+  const [detectedDaw, setDetectedDaw] = useState<{ name: string; icon: React.ReactNode } | null>(null);
+  const [midiSyncEnabled, setMidiSyncEnabled] = useState<boolean>(true);
   const [copiableCodeLang, setCopiableCodeLang] = useState<'js' | 'react'>('js');
   const [copied, setCopied] = useState<boolean>(false);
   
@@ -90,6 +92,16 @@ export default function PluginBridge({
   useEffect(() => {
     const isWindowIframe = window.parent !== window;
     setIsIframe(isWindowIframe);
+    
+    // Attempt DAW detection
+    const detectDAW = () => {
+      const ua = navigator.userAgent;
+      if (ua.includes('Ableton')) return { name: 'Ableton Live', icon: <Music size={14} /> };
+      if (ua.includes('FLStudio')) return { name: 'FL Studio', icon: <Cpu size={14} /> };
+      if ((window as any).AbletonAPI) return { name: 'Ableton Live', icon: <Music size={14} /> };
+      return null;
+    };
+    setDetectedDaw(detectDAW());
     
     // Auto-connect if we detect we're inside an iframe as a plugin
     if (isWindowIframe) {
@@ -135,14 +147,14 @@ export default function PluginBridge({
           break;
           
         case 'DAW_NOTE_ON':
-          if (data.midi) {
+          if (data.midi && midiSyncEnabled) {
             onExternalNoteOn(data.midi);
             addLog('in', 'DAW_NOTE_ON', `Pitch: ${data.midi} | Velocity: ${data.velocity || 127}`);
           }
           break;
           
         case 'DAW_NOTE_OFF':
-          if (data.midi) {
+          if (data.midi && midiSyncEnabled) {
             onExternalNoteOff(data.midi);
             addLog('in', 'DAW_NOTE_OFF', `Pitch: ${data.midi}`);
           }
@@ -190,7 +202,7 @@ export default function PluginBridge({
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [handleInstrumentChange, handleSelectKey, setActiveTuningId, setCustomTuningNotes, onExternalNoteOn, onExternalNoteOff]);
+  }, [handleInstrumentChange, handleSelectKey, setActiveTuningId, setCustomTuningNotes, onExternalNoteOn, onExternalNoteOff, midiSyncEnabled]);
 
   // Web MIDI API setup
   useEffect(() => {
@@ -215,7 +227,7 @@ export default function PluginBridge({
                   addLog('in', 'MIDI_KEYBOARD_NOTE_ON', `Pitch: ${note} | Vel: ${velocity} (${input.name})`);
                   
                   // Forward as plugin trigger back to DAW parent as well!
-                  if (window.parent !== window) {
+                  if (window.parent !== window && midiSyncEnabled) {
                     window.parent.postMessage({
                       source: 'guitarigz-plugin',
                       type: 'PLUGIN_NOTE_PLAYED',
@@ -272,7 +284,7 @@ export default function PluginBridge({
             addLog('in', 'SIMULATED_NOTE_ON', `Step: ${next + 1} | Pitch: ${finalMidi} | Freq: ${Math.round(440 * Math.pow(2, (finalMidi-69)/12))}Hz`);
             
             // Simulate postMessage out
-            if (window.parent !== window) {
+            if (window.parent !== window && midiSyncEnabled) {
               window.parent.postMessage({
                 source: 'guitarigz-plugin',
                 type: 'PLUGIN_NOTE_PLAYED',
@@ -467,6 +479,11 @@ export function GuitarigzDawPlugin() {
                 }`}>
                   {dawConnected ? 'CONNECTED TO HOST' : 'STANDALONE MODE'}
                 </span>
+                {detectedDaw && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    {detectedDaw.icon} {detectedDaw.name}
+                  </span>
+                )}
               </div>
               
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
@@ -479,6 +496,17 @@ export function GuitarigzDawPlugin() {
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={() => setMidiSyncEnabled(!midiSyncEnabled)}
+              className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold font-mono transition-all flex items-center gap-2 cursor-pointer ${
+                midiSyncEnabled
+                  ? 'bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {midiSyncEnabled ? <Wifi size={13} /> : <WifiOff size={13} />}
+              {midiSyncEnabled ? 'MIDI Sync On' : 'MIDI Sync Off'}
+            </button>
             {!isIframe && (
               <button
                 onClick={() => setDawConnected(!dawConnected)}

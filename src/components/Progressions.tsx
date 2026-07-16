@@ -17,6 +17,7 @@ interface ProgressionsProps {
   onFilterChord: (root: NoteName | null, type: ChordType | null) => void;
   selectedChordRoot: NoteName | null;
   selectedChordType: ChordType | null;
+  unlockedAddons?: string[];
 }
 
 interface ProgressionFormula {
@@ -103,15 +104,83 @@ export default function Progressions({
   onFilterChord,
   selectedChordRoot,
   selectedChordType,
+  unlockedAddons = []
 }: ProgressionsProps) {
-  const [activeProgId, setActiveProgId] = useState<string>(PRESET_PROGRESSIONS[0].id);
+  const getProgressionsList = () => {
+    const list = [...PRESET_PROGRESSIONS];
+    if (unlockedAddons.includes('addon_acoustic')) {
+      list.push(
+        {
+          id: 'acoustic_travis',
+          name: 'Travis Fingerstyle (I - V - vi - iii - IV - I - IV - V) 🍂',
+          description: 'A beautiful, flowing acoustic pattern unlocked via the Acoustic Folk lessons add-on. Ideal for fingerstyle picking exercises.',
+          isMinorKey: false,
+          steps: [
+            { degreeLabel: 'I', semitones: 0, chordType: 'maj' },
+            { degreeLabel: 'V', semitones: 7, chordType: 'maj' },
+            { degreeLabel: 'vi', semitones: 9, chordType: 'min' },
+            { degreeLabel: 'iii', semitones: 4, chordType: 'min' },
+            { degreeLabel: 'IV', semitones: 5, chordType: 'maj' },
+            { degreeLabel: 'I', semitones: 0, chordType: 'maj' },
+            { degreeLabel: 'IV', semitones: 5, chordType: 'maj' },
+            { degreeLabel: 'V', semitones: 7, chordType: 'maj' },
+          ]
+        },
+        {
+          id: 'acoustic_folk_stave',
+          name: 'Rustic Folk Progression (vi - IV - I - V) 🌾',
+          description: 'Warm and melancholy open-chord movement unlocked via the Acoustic Folk lessons add-on. Widely used in indie folk and acoustic ballads.',
+          isMinorKey: true,
+          steps: [
+            { degreeLabel: 'vi', semitones: 9, chordType: 'min' },
+            { degreeLabel: 'IV', semitones: 5, chordType: 'maj' },
+            { degreeLabel: 'I', semitones: 0, chordType: 'maj' },
+            { degreeLabel: 'V', semitones: 7, chordType: 'maj' },
+          ]
+        }
+      );
+    }
+    if (unlockedAddons.includes('addon_blues_jazz')) {
+      list.push(
+        {
+          id: 'jazz_turnaround',
+          name: 'Smooth Jazz Satin Turnaround (ii7 - V7 - Imaj7 - VI7) 🎷',
+          description: 'Sophisticated voice leading unlocked via the Blues & Jazz Soloing Pack. Features custom dominant 7th and minor 7th chord shifts.',
+          isMinorKey: false,
+          steps: [
+            { degreeLabel: 'ii7', semitones: 2, chordType: 'min7' },
+            { degreeLabel: 'V7', semitones: 7, chordType: 'dom7' },
+            { degreeLabel: 'Imaj7', semitones: 0, chordType: 'maj7' },
+            { degreeLabel: 'VI7', semitones: 9, chordType: 'dom7' },
+          ]
+        },
+        {
+          id: 'slow_blues_16',
+          name: 'Slow Blues Club Walk (I7 - IV7 - V7 - I7) 🎸',
+          description: 'Deep late-night blues shuffle sequence unlocked via the Blues & Jazz Soloing Pack. Immersive dominant chord substitutions.',
+          isMinorKey: false,
+          steps: [
+            { degreeLabel: 'I7', semitones: 0, chordType: 'dom7' },
+            { degreeLabel: 'IV7', semitones: 5, chordType: 'dom7' },
+            { degreeLabel: 'I7', semitones: 0, chordType: 'dom7' },
+            { degreeLabel: 'V7', semitones: 7, chordType: 'dom7' },
+          ]
+        }
+      );
+    }
+    return list;
+  };
+
+  const progressionsList = getProgressionsList();
+
+  const [activeProgId, setActiveProgId] = useState<string>(progressionsList[0].id);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentStepIdx, setCurrentStepIdx] = useState<number>(0);
   const [bpm, setBpm] = useState<number>(90);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const activeProg = PRESET_PROGRESSIONS.find(p => p.id === activeProgId) || PRESET_PROGRESSIONS[0];
+  const activeProg = progressionsList.find(p => p.id === activeProgId) || progressionsList[0];
 
   // Helper: Generates a list of absolute chords for the current progression and transpose key
   const getCalculatedChords = () => {
@@ -298,7 +367,7 @@ export default function Progressions({
             onChange={(e) => handleProgressionSelect(e.target.value)}
             className="bg-slate-900 border border-slate-800 text-slate-250 hover:border-slate-700/80 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer min-w-[200px]"
           >
-            {PRESET_PROGRESSIONS.map((prog) => (
+            {progressionsList.map((prog) => (
               <option key={prog.id} value={prog.id}>
                 {prog.name}
               </option>
