@@ -16,7 +16,9 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Wifi,
-  WifiOff
+  WifiOff,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { playNote } from '../utils/audio';
@@ -71,8 +73,9 @@ export default function PluginBridge({
   const [dawConnected, setDawConnected] = useState<boolean>(false);
   const [detectedDaw, setDetectedDaw] = useState<{ name: string; icon: React.ReactNode } | null>(null);
   const [midiSyncEnabled, setMidiSyncEnabled] = useState<boolean>(true);
-  const [copiableCodeLang, setCopiableCodeLang] = useState<'js' | 'react'>('js');
+  const [copiableCodeLang, setCopiableCodeLang] = useState<'html' | 'js' | 'react'>('html');
   const [copied, setCopied] = useState<boolean>(false);
+  const [autoRegisterBeaconCount, setAutoRegisterBeaconCount] = useState<number>(0);
   
   // DAW Simulator States
   const [simBpm, setSimBpm] = useState<number>(120);
@@ -88,7 +91,7 @@ export default function PluginBridge({
   const logsEndRef = useRef<HTMLDivElement>(null);
   const stepTimerRef = useRef<number | null>(null);
 
-  // Check if running inside an iframe
+  // Check if running inside an iframe and initialize GUITARIGZ_AUTO_REGISTER beacon
   useEffect(() => {
     const isWindowIframe = window.parent !== window;
     setIsIframe(isWindowIframe);
@@ -103,21 +106,44 @@ export default function PluginBridge({
     };
     setDetectedDaw(detectDAW());
     
-    // Auto-connect if we detect we're inside an iframe as a plugin
+    // Auto-Broadcast GUITARIGZ_AUTO_REGISTER Beacon
+    const broadcastAutoRegister = () => {
+      const payload = {
+        source: 'guitarigz-plugin',
+        type: 'GUITARIGZ_AUTO_REGISTER',
+        pluginId: 'guitarigz-theory-flow',
+        version: '2.5',
+        status: 'ready',
+        domain: 'guitarigz.xyz',
+        capabilities: ['guitar', 'bass', 'chords', 'scales', 'synth', 'postMessage'],
+        autoBind: true
+      };
+
+      // Broadcast to parent frame
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+      // Broadcast to top window if nested
+      if (window.top && window.top !== window && window.top !== window.parent) {
+        window.top.postMessage(payload, '*');
+      }
+
+      setAutoRegisterBeaconCount(prev => prev + 1);
+    };
+
+    // Immediate registration beacon
+    broadcastAutoRegister();
+    
     if (isWindowIframe) {
       setDawConnected(true);
-      addLog('in', 'DAW_DETECTED', 'Loaded inside DAW iframe. Awaiting handshake...');
+      addLog('out', 'GUITARIGZ_AUTO_REGISTER', 'Auto-Registration Handshake beacon broadcasted to host DAW');
       
-      // Send initial connect signal to parent DAW
-      window.parent.postMessage({
-        source: 'guitarigz-plugin',
-        type: 'PLUGIN_READY',
-        capabilities: {
-          instruments: ['guitar', 'bass-4', 'bass-5'],
-          features: ['polyphonic-playback', 'scale-highlights', 'chord-voicings', 'custom-tuning']
-        }
-      }, '*');
-      addLog('out', 'PLUGIN_READY', 'Capabilities packet sent to DAW host');
+      // Send recurring beacon every 5 seconds to ensure parent DAW auto-discovers if loaded late
+      const beaconInterval = setInterval(() => {
+        broadcastAutoRegister();
+      }, 5000);
+
+      return () => clearInterval(beaconInterval);
     }
   }, []);
 
@@ -128,69 +154,88 @@ export default function PluginBridge({
       const data = event.data;
       if (!data || typeof data !== 'object') return;
       
-      // Check if this message is intended for the guitarigz plugin
-      if (data.target !== 'guitarigz-plugin' && !data.type?.startsWith('DAW_')) return;
-      
-      const timestamp = new Date().toLocaleTimeString() + '.' + String(new Date().getMilliseconds()).padStart(3, '0');
+      // Allow flexible targeting for 9th graders: target 'guitarigz-plugin', 'guitarigz', or general DAW messages
+      const isForGuitarigz = 
+        data.target === 'guitarigz-plugin' || 
+        data.target === 'guitarigz' || 
+        data.source === 'daw-host' ||
+        data.type?.startsWith('DAW_') ||
+        data.type?.startsWith('GUITARIGZ_') ||
+        data.type === 'NOTE_ON' ||
+        data.type === 'NOTE_OFF';
+
+      if (!isForGuitarigz) return;
       
       switch (data.type) {
+        case 'GUITARIGZ_AUTO_REGISTER_ACK':
         case 'DAW_CONNECT':
+        case 'AUTO_CONNECT':
           setDawConnected(true);
-          addLog('in', 'DAW_CONNECT', `Handshake received from DAW: "${data.dawName || 'Unknown DAW'}"`);
+          addLog('in', data.type, `Auto-Registration ACK from host DAW: "${data.dawName || 'Custom Student DAW'}"`);
           // Reply with connected
           event.source?.postMessage({
             source: 'guitarigz-plugin',
             type: 'PLUGIN_CONNECTED',
-            status: 'ready'
+            status: 'ready',
+            autoBound: true
           }, event.origin as any);
-          addLog('out', 'PLUGIN_CONNECTED', 'Handshake acknowledgment returned');
+          addLog('out', 'PLUGIN_CONNECTED', 'Auto-Bound Handshake confirmed');
           break;
           
+        case 'NOTE_ON':
+        case 'GUITARIGZ_NOTE_ON':
         case 'DAW_NOTE_ON':
           if (data.midi && midiSyncEnabled) {
             onExternalNoteOn(data.midi);
-            addLog('in', 'DAW_NOTE_ON', `Pitch: ${data.midi} | Velocity: ${data.velocity || 127}`);
+            addLog('in', data.type, `Pitch: ${data.midi} | Velocity: ${data.velocity || 127}`);
           }
           break;
           
+        case 'NOTE_OFF':
+        case 'GUITARIGZ_NOTE_OFF':
         case 'DAW_NOTE_OFF':
           if (data.midi && midiSyncEnabled) {
             onExternalNoteOff(data.midi);
-            addLog('in', 'DAW_NOTE_OFF', `Pitch: ${data.midi}`);
+            addLog('in', data.type, `Pitch: ${data.midi}`);
           }
           break;
           
+        case 'SET_KEY':
+        case 'GUITARIGZ_SET_KEY':
         case 'DAW_SET_KEY':
           if (data.root && data.scaleType) {
             handleSelectKey(data.root, data.scaleType);
-            addLog('in', 'DAW_SET_KEY', `Updated Global key to: ${data.root} ${data.scaleType}`);
+            addLog('in', data.type, `Key synced to: ${data.root} ${data.scaleType}`);
           }
           break;
           
         case 'DAW_SET_INSTRUMENT':
+        case 'GUITARIGZ_SET_INSTRUMENT':
           if (['guitar', 'bass-4', 'bass-5'].includes(data.instrument)) {
             handleInstrumentChange(data.instrument);
-            addLog('in', 'DAW_SET_INSTRUMENT', `Switched instrument to: ${data.instrument}`);
+            addLog('in', data.type, `Instrument switched to: ${data.instrument}`);
           }
           break;
           
         case 'DAW_SET_TUNING':
+        case 'GUITARIGZ_SET_TUNING':
           if (data.tuningId) {
             if (data.tuningId === 'custom' && Array.isArray(data.customNotes)) {
               setCustomTuningNotes(data.customNotes);
               setActiveTuningId('custom');
-              addLog('in', 'DAW_SET_TUNING', `Configured Custom Tuning: [${data.customNotes.join(', ')}]`);
+              addLog('in', data.type, `Custom Tuning: [${data.customNotes.join(', ')}]`);
             } else {
               setActiveTuningId(data.tuningId);
-              addLog('in', 'DAW_SET_TUNING', `Applied Tuning preset: ${data.tuningId}`);
+              addLog('in', data.type, `Tuning applied: ${data.tuningId}`);
             }
           }
           break;
           
         case 'DAW_SYNC_TEMPO':
+        case 'GUITARIGZ_SYNC_TEMPO':
           setSimBpm(data.bpm || 120);
           setSimIsPlaying(!!data.isPlaying);
-          addLog('in', 'DAW_SYNC_TEMPO', `Sync BPM: ${data.bpm || 120} | Playhead: ${data.isPlaying ? 'PLAY' : 'PAUSED'}`);
+          addLog('in', data.type, `BPM: ${data.bpm || 120} | Playhead: ${data.isPlaying ? 'PLAY' : 'PAUSED'}`);
           break;
           
         default:
@@ -362,89 +407,78 @@ export default function PluginBridge({
   };
 
   const handleCopyCode = () => {
-    const code = copiableCodeLang === 'js' ? jsCode : reactCode;
+    const code = copiableCodeLang === 'html' ? htmlCode : copiableCodeLang === 'js' ? jsCode : reactCode;
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Copiable javascript code snippets
-  const jsCode = `// 1. Load Guitarigz Fretboard inside your DAW as an Iframe
-const iframe = document.createElement('iframe');
-iframe.src = "https://ais-pre-ws7h5dacpe6bf4xt3bdagk-186944557149.us-west1.run.app";
-iframe.style.width = "100%";
-iframe.style.height = "650px";
-iframe.style.border = "none";
-document.body.appendChild(iframe);
+  // Zero-Code HTML snippet for 13-year-olds & 9th graders
+  const htmlCode = `<!-- ZERO-CODE 1-LINE DAW EMBED FOR 13-YEAR-OLDS & 9TH GRADE MUSIC TECH -->
+<!-- Simply paste this single tag into your DAW HTML page. NO JAVASCRIPT REQUIRED! -->
 
-// 2. LISTEN to MIDI Note-Out played inside the Guitarigz Plugin (Fret clicks, chord strumming)
+<iframe 
+  id="guitarigz-plugin" 
+  src="https://ais-pre-ws7h5dacpe6bf4xt3bdagk-186944557149.us-west1.run.app" 
+  width="100%" 
+  height="680" 
+  allow="microphone; midi"
+  style="border: none; border-radius: 16px;">
+</iframe>
+
+<!-- Guitarigz automatically broadcasts 'GUITARIGZ_AUTO_REGISTER' as soon as it loads! -->
+<!-- Your DAW automatically receives auto-registration capabilities without writing code. -->`;
+
+  // Copiable javascript code snippets
+  const jsCode = `// ZERO-CODE DAW HANDSHAKE LISTENER (FOR TEACHERS & DAW DEVELOPERS)
+// Guitarigz automatically sends 'GUITARIGZ_AUTO_REGISTER' when the iframe loads!
+
 window.addEventListener('message', (event) => {
   const data = event.data;
-  if (data.source === 'guitarigz-plugin') {
-    if (data.type === 'PLUGIN_NOTE_PLAYED') {
-      console.log(\`[DAW Recorded Note] Pitch: \${data.midi} | String: \${data.stringIndex}\`);
-      // --> Pass this to your DAW's synth, piano roll, or drum machine recorder!
-      triggerSynthInDaw(data.midi, data.velocity || 127);
-    }
+  
+  // 1. Auto-Register Handshake Received from Guitarigz!
+  if (data.type === 'GUITARIGZ_AUTO_REGISTER') {
+    console.log("🟢 Guitarigz Self-Registered with DAW!", data.capabilities);
+    // Reply back with optional confirmation ACK
+    event.source.postMessage({ type: 'GUITARIGZ_AUTO_REGISTER_ACK', dawName: 'Student DAW' }, '*');
+  }
+
+  // 2. Hear notes played on Guitarigz Fretboard (when student strums a chord)
+  if (data.type === 'PLUGIN_NOTE_PLAYED') {
+    console.log("Fret clicked in plugin:", data.midi);
+    triggerDawSynth(data.midi);
   }
 });
 
-// 3. SEND Note-In / Commands into the Plugin (Highlights notes, plays internal synth)
-function triggerPluginNote(midi, velocity = 127, isOn = true) {
-  iframe.contentWindow.postMessage({
-    target: 'guitarigz-plugin',
-    type: isOn ? 'DAW_NOTE_ON' : 'DAW_NOTE_OFF',
-    midi: midi,
-    velocity: velocity
-  }, '*');
-}
-
-// 4. SYNC DAW States (BPM, Scale, Key Tuning) into the Plugin
-function syncDawToPlugin(bpm, keyRoot, scale) {
-  iframe.contentWindow.postMessage({
-    target: 'guitarigz-plugin',
-    type: 'DAW_SET_KEY',
-    root: keyRoot, // e.g. "G"
-    scaleType: scale // e.g. "aeolian"
+// 3. Send Note to Guitarigz (simple 1-line call)
+function sendNoteToGuitarigz(midiPitch) {
+  document.getElementById('guitarigz-plugin').contentWindow.postMessage({
+    type: 'NOTE_ON',
+    midi: midiPitch
   }, '*');
 }`;
 
-  const reactCode = `import React, { useRef, useEffect } from 'react';
+  const reactCode = `import React, { useEffect } from 'react';
 
-export function GuitarigzDawPlugin() {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Send Note On to Fretboard plugin
-  const sendNoteToPlugin = (midiPitch: number, isNoteOn: boolean) => {
-    iframeRef.current?.contentWindow?.postMessage({
-      target: 'guitarigz-plugin',
-      type: isNoteOn ? 'DAW_NOTE_ON' : 'DAW_NOTE_OFF',
-      midi: midiPitch,
-      velocity: 100
-    }, '*');
-  };
-
+// 13-Year-Old & Classroom Friendly React Component
+export function StudentDawPlugin() {
   useEffect(() => {
-    // Listen for recorded notes coming OUT of the fretboard
-    const handlePluginOutput = (e: MessageEvent) => {
-      const data = e.data;
-      if (data.source === 'guitarigz-plugin') {
-        if (data.type === 'PLUGIN_NOTE_PLAYED') {
-          console.log("Guitarigz chord/fret clicked:", data.midi);
-          // Play in DAW host synth
-        }
+    // Optional: Listen for automatic self-registration beacon
+    const handleAutoRegister = (event: MessageEvent) => {
+      if (event.data?.type === 'GUITARIGZ_AUTO_REGISTER') {
+        console.log("🟢 Guitarigz Self-Registered automatically!", event.data.capabilities);
       }
     };
-
-    window.addEventListener('message', handlePluginOutput);
-    return () => window.removeEventListener('message', handlePluginOutput);
+    window.addEventListener('message', handleAutoRegister);
+    return () => window.removeEventListener('message', handleAutoRegister);
   }, []);
 
   return (
     <iframe
-      ref={iframeRef}
+      id="guitarigz-plugin"
       src="https://ais-pre-ws7h5dacpe6bf4xt3bdagk-186944557149.us-west1.run.app"
-      className="w-full h-[680px] rounded-2xl border border-slate-800"
+      className="w-full h-[680px] rounded-2xl border-0 shadow-2xl"
+      allow="microphone; midi"
       title="Guitarigz DAW Plugin"
     />
   );
@@ -676,17 +710,63 @@ export function GuitarigzDawPlugin() {
           </div>
         </div>
 
-        {/* 2. Integration Code Box */}
+        {/* 2. Classroom & 9th Grade Zero-Code Self-Registration Callout Card */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-950 p-5 rounded-3xl border border-amber-500/30 shadow-xl flex flex-col gap-3 text-left">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles size={18} className="text-amber-400 animate-pulse" />
+              <h4 className="font-display font-bold text-sm text-amber-300 uppercase tracking-wide">
+                13-Year-Old & 9th Grade Zero-Code Auto-Register
+              </h4>
+            </div>
+            <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-[9px] font-mono font-bold text-amber-400 rounded-full">
+              AUTO-SELF-CONNECT ACTIVE
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-300 leading-relaxed font-sans">
+            <strong>No programming knowledge needed for students!</strong> When your 9th-graders load your DAW, Guitarigz automatically broadcasts a <code className="text-amber-400 font-mono font-bold">GUITARIGZ_AUTO_REGISTER</code> beacon to self-register with your DAW host frame.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-amber-500/20">
+            <div className="text-[11px] font-mono text-slate-400">
+              Beacons sent: <span className="text-amber-400 font-bold">{autoRegisterBeaconCount}</span> • Format: <span className="text-emerald-400">GUITARIGZ_AUTO_REGISTER</span>
+            </div>
+
+            <button
+              onClick={() => {
+                // Trigger a simulated self-registration signal into logs
+                addLog('out', 'GUITARIGZ_AUTO_REGISTER', 'Self-Registration Beacon sent to DAW parent frame');
+                addLog('in', 'GUITARIGZ_AUTO_REGISTER_ACK', 'DAW host recognized plugin auto-registration!');
+                setDawConnected(true);
+              }}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+            >
+              <Zap size={14} className="fill-slate-950" />
+              <span>Test Auto-Register Handshake</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3. Integration Code Box */}
         <div className="bg-slate-950/40 p-6 rounded-3xl border border-slate-850 shadow-xl flex flex-col gap-4 text-left">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-850">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-850 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Globe size={16} className="text-amber-500" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-350">
-                DAW Integration Code Blueprint
+                DAW Embed Snippets & Auto-Register Blueprint
               </h4>
             </div>
             
             <div className="flex bg-slate-900 p-0.5 border border-slate-800 rounded-lg">
+              <button
+                onClick={() => setCopiableCodeLang('html')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
+                  copiableCodeLang === 'html' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                1-Line HTML (Zero-Code)
+              </button>
               <button
                 onClick={() => setCopiableCodeLang('js')}
                 className={`px-2.5 py-1 rounded-md text-[10px] font-bold font-mono transition-all ${
@@ -707,12 +787,14 @@ export function GuitarigzDawPlugin() {
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed font-sans">
-            Ready to plug Guitarigz into your custom DAW project? Simply embed this application as an iframe and use standard window postMessage handlers as structured below:
+            {copiableCodeLang === 'html'
+              ? "Copy and paste this single <iframe> tag into your DAW project HTML. Guitarigz handles auto-registration on load automatically!"
+              : "Use these postMessage handlers if you wish to inspect or control key signatures, BPM tempo sync, or note triggers programmatically:"}
           </p>
 
           <div className="relative">
             <pre className="p-4 bg-slate-950 border border-slate-900 rounded-2xl text-[11px] font-mono text-slate-300 overflow-x-auto max-h-[320px] scrollbar-thin leading-relaxed">
-              <code>{copiableCodeLang === 'js' ? jsCode : reactCode}</code>
+              <code>{copiableCodeLang === 'html' ? htmlCode : copiableCodeLang === 'js' ? jsCode : reactCode}</code>
             </pre>
             
             <button
