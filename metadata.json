@@ -1,6 +1,6 @@
 {
-  "name": "Guitarigz: Fret & Theory",
-  "description": "An interactive fretboard visualizer, cage voicing builder, and fully functional full-stack real-time guitar effects studio powered by Gemini AI.",
+  "name": "Guitarigz: Theory & Flow",
+  "description": "Interactive guitar fretboard visualizer, scale & chord theory suite, and real-time tube amp effects studio for guitarigz.xyz",
   "requestFramePermissions": [
     "microphone"
   ],

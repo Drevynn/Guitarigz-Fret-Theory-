@@ -128,6 +128,125 @@ Instructions:
   }
 });
 
+// API: Guitar Audio Transcription to Tab Literature
+app.post('/api/ai/transcribe-guitar', async (req, res) => {
+  try {
+    const { audioBase64, mimeType, tuningInfo } = req.body;
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      res.status(400).json({ error: 'Audio data is required for transcription.' });
+      return;
+    }
+
+    const audioMime = mimeType || 'audio/webm';
+    
+    const systemInstruction = `You are an expert master guitarist, musicologist, and audio transcription engine.
+Your task is to analyze the audio recording of guitar or bass playing and transcribe it into accurate, beautifully readable ASCII guitar tablature ("tab literature") and comprehensive music theory analysis.
+
+Instructions:
+1. Detect key signature, estimated BPM tempo, time signature, tuning, chords, and techniques (hammer-ons, pull-offs, slides, bends, palm muting, vibrato).
+2. Generate formatted 6-string (or 4/5-string if bass tuning specified) ASCII guitar tablature text.
+   Ensure strings are labeled (e|---, B|---, G|---, D|---, A|---, E|---).
+   Use standard tab notation (numbers for frets, 'h' for hammer-on, 'p' for pull-off, '/' for slide up, '\\' for slide down, 'b' for bend, '~' for vibrato, 'x' for dead note/mute).
+3. Breakdown the transcription into clear measure blocks with annotations.`;
+
+    const audioPart = {
+      inlineData: {
+        mimeType: audioMime,
+        data: audioBase64,
+      },
+    };
+
+    const textPart = {
+      text: `Transcribe this guitar audio into guitar tab literature and music analysis. Target tuning: ${tuningInfo || 'Standard E A D G B E'}. Provide a detailed tab transcription.`,
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: { parts: [audioPart, textPart] },
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          required: [
+            'title',
+            'keySignature',
+            'estimatedBpm',
+            'timeSignature',
+            'tuning',
+            'summary',
+            'chordsIdentified',
+            'techniquesUsed',
+            'tabText',
+            'measures',
+          ],
+          properties: {
+            title: {
+              type: Type.STRING,
+              description: 'Descriptive title for the transcribed guitar lick or song segment.',
+            },
+            keySignature: {
+              type: Type.STRING,
+              description: 'Key signature detected (e.g. "E Minor", "A Major").',
+            },
+            estimatedBpm: {
+              type: Type.INTEGER,
+              description: 'Estimated tempo in BPM.',
+            },
+            timeSignature: {
+              type: Type.STRING,
+              description: 'Detected time signature (e.g. "4/4", "3/4", "6/8").',
+            },
+            tuning: {
+              type: Type.STRING,
+              description: 'Guitar tuning used (e.g. "Standard E A D G B E").',
+            },
+            summary: {
+              type: Type.STRING,
+              description: 'Musical breakdown and playing technique guide.',
+            },
+            chordsIdentified: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'List of chord names recognized in the audio.',
+            },
+            techniquesUsed: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'Guitar techniques detected (e.g. "Hammer-on", "Bend", "Palm Mute").',
+            },
+            tabText: {
+              type: Type.STRING,
+              description: 'Full formatted ASCII guitar tab literature block.',
+            },
+            measures: {
+              type: Type.ARRAY,
+              description: 'Breakdown by measure.',
+              items: {
+                type: Type.OBJECT,
+                required: ['measureNumber', 'chords', 'notesText', 'tabAscii', 'tip'],
+                properties: {
+                  measureNumber: { type: Type.INTEGER },
+                  chords: { type: Type.STRING },
+                  notesText: { type: Type.STRING },
+                  tabAscii: { type: Type.STRING },
+                  tip: { type: Type.STRING },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const text = response.text || '{}';
+    res.json(JSON.parse(text));
+  } catch (error: any) {
+    console.error('Gemini audio transcription error:', error);
+    res.status(500).json({ error: error.message || 'Failed to transcribe guitar audio.' });
+  }
+});
+
 // Configure Vite or Production static files serving
 async function setupServer() {
   if (process.env.NODE_ENV !== 'production') {

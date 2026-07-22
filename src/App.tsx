@@ -19,6 +19,9 @@ import PluginBridge from './components/PluginBridge';
 import HelpGuide from './components/HelpGuide';
 import Metronome from './components/Metronome';
 import ExtensionsStore from './components/ExtensionsStore';
+import AudioTabTranscriber from './components/AudioTabTranscriber';
+import HamburgerMenu from './components/HamburgerMenu';
+import AdminPanel from './components/AdminPanel';
 import { STANDARD_TUNINGS, BASS_4_TUNINGS, BASS_5_TUNINGS, SCALE_FORMULAS, CHROMATIC_NOTES_SHARP, keyPrefersFlats } from './utils/theory';
 import { initAudio, toggleAudioMute, isAudioMuted, playNote } from './utils/audio';
 import {
@@ -35,7 +38,9 @@ import {
   LogOut,
   Link,
   Settings,
-  Globe
+  Globe,
+  Mic,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -64,6 +69,31 @@ const THEMES = [
     tabActive: 'border-amber-500 text-slate-50',
     tabIcon: 'text-amber-500',
     btnActive: 'bg-[linear-gradient(135deg,#f59e0b,#d97706)] text-slate-950 font-black shadow-lg shadow-amber-950/20'
+  },
+  {
+    id: 'navy-gold',
+    name: 'Navy Pearl & Gold',
+    dotBackground: 'linear-gradient(135deg, #0f172a, #f59e0b)',
+    primaryBg: 'bg-slate-950',
+    secondaryBg: 'bg-slate-50',
+    panelBg: 'bg-slate-900/90',
+    border: 'border-slate-800',
+    borderButton: 'border-slate-300',
+    textPrimary: 'text-slate-900',
+    textSecondary: 'text-slate-600',
+    accentText: 'text-amber-500',
+    accentTextDark: 'text-amber-600',
+    accentBg: 'bg-amber-500',
+    accentHoverBg: 'bg-amber-600',
+    logoGradient: 'bg-gradient-to-r from-slate-900 via-amber-500 to-sky-600',
+    titleGradient: 'bg-gradient-to-r from-slate-900 via-amber-600 to-slate-900',
+    badgeBg: 'bg-amber-500/15',
+    badgeText: 'text-amber-600',
+    glowCircles: ['bg-sky-500/20', 'bg-amber-500/25', 'bg-blue-600/20'],
+    highlightClass: 'text-amber-500',
+    tabActive: 'border-amber-500 text-slate-900 font-bold',
+    tabIcon: 'text-amber-500',
+    btnActive: 'bg-[linear-gradient(135deg,#0f172a,#1e293b)] text-amber-400 font-black shadow-lg shadow-slate-900/20 border border-amber-500/40'
   },
   {
     id: 'emerald',
@@ -278,7 +308,7 @@ export default function App() {
   >(null);
 
   // Active dashboard view tab
-  const [activeTab, setActiveTab] = useState<'progressions' | 'fifths' | 'caged' | 'quiz' | 'studio' | 'plugin' | 'guide' | 'metronome' | 'apps'>('progressions');
+  const [activeTab, setActiveTab] = useState<'progressions' | 'fifths' | 'caged' | 'quiz' | 'transcribe' | 'studio' | 'plugin' | 'guide' | 'metronome' | 'apps' | 'admin'>('progressions');
 
   // External active MIDI/DAW note tracking
   const [externalActiveNotes, setExternalActiveNotes] = useState<number[]>([]);
@@ -377,18 +407,44 @@ export default function App() {
       <header className={`border-b ${theme.border} ${theme.primaryBg}/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4 shadow-sm transition-colors duration-300`}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
-          {/* Logo element */}
+          {/* Logo & Hamburger Menu element */}
           <div className="flex items-center gap-3">
+            <HamburgerMenu
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              user={user}
+              onLogout={handleLogout}
+              themeId={themeId}
+              setThemeId={setThemeId}
+              themes={THEMES}
+              instrument={instrument}
+              onChangeInstrument={handleInstrumentChange}
+              muted={muted}
+              onToggleMute={handleAudioInit}
+              activeRoot={activeRoot}
+              activeScale={activeScale}
+              onSelectKey={handleSelectKey}
+            />
+
             <div className={`p-2 ${theme.logoGradient} rounded-2xl text-slate-950 shadow-md border border-white/10`}>
               <Sparkles size={20} className="fill-slate-950" />
             </div>
             <div className="text-left">
               <div className="flex items-center gap-2">
-                <h1 className={`font-display font-black text-lg tracking-tight uppercase bg-gradient-to-r ${theme.titleGradient} bg-clip-text text-transparent`}>
-                  Guitarigz: Fret & Theory
+                <h1 className="font-display font-black text-lg tracking-tight uppercase shimmer-text">
+                  Guitarigz: Theory & Flow
                 </h1>
                 
-                 {isPremium ? (
+                {user?.email === 'admin@guitarigz.xyz' ? (
+                  <button
+                    onClick={() => setActiveTab('admin')}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-amber-400 text-[9px] font-bold font-mono tracking-wider uppercase hover:bg-amber-500/30 transition-all cursor-pointer shadow-sm shadow-amber-500/10"
+                    title="Open System Admin Operations Panel"
+                  >
+                    <ShieldCheck size={12} className="text-amber-400" />
+                    <span>Admin Mode</span>
+                  </button>
+                ) : isPremium ? (
                   <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 ${theme.badgeBg} border ${theme.border} rounded-full ${theme.badgeText} text-[9px] font-bold font-mono tracking-wider uppercase`}>
                     {instrument.startsWith('bass') ? 'Bass Edition' : 'Combined Pro'}
                   </span>
@@ -398,8 +454,8 @@ export default function App() {
                   </span>
                 )}
               </div>
-              <p className="text-[10px] font-mono tracking-widest text-slate-450 uppercase mt-0.5">
-                {instrument.startsWith('bass') ? 'Guitarigz Bass & Groove Suite' : 'Guitarigz Music Suite • Unlimited'}
+              <p className="text-[10px] font-mono tracking-widest text-amber-400/90 uppercase mt-0.5">
+                http://guitarigz.xyz • {user?.name || 'Guitarist'}
               </p>
             </div>
           </div>
@@ -666,7 +722,19 @@ export default function App() {
         )}
 
         {/* 3. The Grand Fretboard Board */}
-        <section className="relative z-10 w-full" id="fretboard-main-section">
+        <section className="relative z-10 w-full flex flex-col gap-3" id="fretboard-main-section">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" />
+              <h2 className="font-display font-black text-sm tracking-wider uppercase shimmer-text">
+                Visualize Interactive Fretboard & Harmony
+              </h2>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400 uppercase hidden sm:inline">
+              {activeRoot} {SCALE_FORMULAS[activeScale].name} • {activeTuning.name}
+            </span>
+          </div>
+
           <Fretboard
             activeRoot={activeRoot}
             activeScale={activeScale}
@@ -699,6 +767,24 @@ export default function App() {
           {/* Tabs header bar */}
           <div className={`flex border-b ${theme.border} items-end justify-between overflow-x-auto pb-0.5 scrollbar-thin scrollbar-track-transparent`}>
             <div className="flex gap-2 min-w-[450px]">
+              {user?.email === 'admin@guitarigz.xyz' && (
+                <button
+                  id="tab-admin"
+                  onClick={() => {
+                    setActiveTab('admin');
+                    setActiveVoicingPoints(null);
+                  }}
+                  className={`py-3.5 px-4 font-display font-bold text-xs tracking-wide uppercase border-b-2 transition-all flex items-center gap-2 bg-amber-500/10 ${
+                    activeTab === 'admin'
+                      ? 'border-amber-500 text-amber-400 font-bold'
+                      : `border-transparent text-amber-400/80 hover:text-amber-300 hover:border-amber-500/50`
+                  }`}
+                >
+                  <ShieldCheck size={14} className="text-amber-400 animate-pulse" />
+                  <span>Admin Panel</span>
+                </button>
+              )}
+
               {/* Tab: Progressions */}
               <button
                 id="tab-progressions"
@@ -765,6 +851,23 @@ export default function App() {
               >
                 <GraduationCap size={14} className={activeTab === 'quiz' ? theme.tabIcon : 'text-slate-500'} />
                 Fretboard Trainer
+              </button>
+
+              {/* Tab: Audio Transcriber */}
+              <button
+                id="tab-transcribe"
+                onClick={() => {
+                  setActiveTab('transcribe');
+                  setActiveVoicingPoints(null); // release chord builder locks
+                }}
+                className={`py-3.5 px-4 font-display font-bold text-xs tracking-wide uppercase border-b-2 transition-all flex items-center gap-2 ${
+                  activeTab === 'transcribe'
+                    ? theme.tabActive
+                    : `border-transparent ${theme.textSecondary} hover:text-slate-200 hover:border-slate-800`
+                }`}
+              >
+                <Mic size={14} className={activeTab === 'transcribe' ? theme.tabIcon : 'text-slate-500'} />
+                <span>🎙 Audio Transcriber</span>
               </button>
 
               {/* Tab: AI Rack Studio */}
@@ -961,6 +1064,22 @@ export default function App() {
                     activeScale={activeScale}
                     activeTuning={activeTuning}
                     useFlats={useFlats}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'transcribe' && (
+                <motion.div
+                  key="transcribe-panel"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AudioTabTranscriber
+                    theme={theme}
+                    onSelectKey={handleSelectKey}
+                    activeTuningName={activeTuning.name}
                   />
                 </motion.div>
               )}
@@ -1164,11 +1283,31 @@ export default function App() {
                   <Metronome />
                 </motion.div>
               )}
+
+              {activeTab === 'admin' && user?.email === 'admin@guitarigz.xyz' && (
+                <motion.div
+                  key="admin-panel"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AdminPanel
+                    adminEmail={user.email}
+                    isPremium={isPremium}
+                    onTogglePremium={() => setIsPremium(!isPremium)}
+                    onResetFactoryPresets={() => {
+                      localStorage.removeItem('guitarigz_presets');
+                      alert('Factory presets reset successfully for guitarigz.xyz!');
+                    }}
+                  />
+                </motion.div>
+              )}
             </AnimatePresence>
           </div>
 
           {/* Ad Banner for free extension tier users */}
-          {!isPremium && !hasGuitarStandalone && activeTab !== 'studio' && activeTab !== 'plugin' && activeTab !== 'guide' && activeTab !== 'metronome' && (
+          {!isPremium && !hasGuitarStandalone && activeTab !== 'studio' && activeTab !== 'plugin' && activeTab !== 'guide' && activeTab !== 'metronome' && activeTab !== 'admin' && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

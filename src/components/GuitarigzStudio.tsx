@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Plus, AlertCircle, ArrowLeft, ArrowRight, RotateCcw, Volume2, HelpCircle } from 'lucide-react';
+import { Sparkles, Plus, AlertCircle, ArrowLeft, ArrowRight, RotateCcw, Volume2, HelpCircle, Zap } from 'lucide-react';
 import { Effect, Preset, PresetCategory, PRESET_CATEGORIES } from '../types';
 import { DEFAULT_PRESETS, createDefaultEffect } from '../utils/presetDefaults';
 import PresetSidebar from './PresetSidebar';
@@ -7,6 +7,7 @@ import WaveformVisualizer from './WaveformVisualizer';
 import LiveInput from './LiveInput';
 import EffectModule from './EffectModule';
 import AiToneDialog from './AiToneDialog';
+import AmpSimulator from './AmpSimulator';
 
 export default function GuitarigzStudio() {
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -82,6 +83,27 @@ export default function GuitarigzStudio() {
     }
   };
 
+  // Import presets deck from JSON
+  const handleImportPresets = (imported: Preset[]) => {
+    const combined = [...imported, ...presets.filter((p) => !imported.some((imp) => imp.id === p.id))];
+    setPresets(combined);
+    localStorage.setItem('guitarigz_presets', JSON.stringify(combined));
+    if (imported.length > 0) {
+      setActivePreset(imported[0]);
+      setEffectsChain(imported[0].effects);
+    }
+    setAiRoadieMessage(`Successfully imported ${imported.length} custom presets to your library!`);
+  };
+
+  // Reset presets to default factory presets
+  const handleResetDefaults = () => {
+    setPresets(DEFAULT_PRESETS);
+    localStorage.setItem('guitarigz_presets', JSON.stringify(DEFAULT_PRESETS));
+    setActivePreset(DEFAULT_PRESETS[0]);
+    setEffectsChain(DEFAULT_PRESETS[0].effects);
+    setAiRoadieMessage('Presets library restored to factory default genre rigs.');
+  };
+
   // Select preset from sidebar
   const handleSelectPreset = (preset: Preset) => {
     setActivePreset(preset);
@@ -148,6 +170,43 @@ export default function GuitarigzStudio() {
     setAiRoadieMessage(description);
   };
 
+  // Inline AI Tweak state
+  const [inlineAiPrompt, setInlineAiPrompt] = useState('');
+  const [inlineAiLoading, setInlineAiLoading] = useState(false);
+
+  // Handle inline AI tweaking/generation
+  const handleInlineAiTweak = async (promptToUse?: string) => {
+    const textPrompt = (promptToUse || inlineAiPrompt).trim();
+    if (!textPrompt) return;
+
+    setInlineAiLoading(true);
+    setAiRoadieMessage(`AI Roadie is tweaking pedals for: "${textPrompt}"...`);
+
+    try {
+      const response = await fetch('/api/ai/generate-tone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: textPrompt }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to tweak guitar rig.');
+      }
+
+      const data = await response.json();
+      if (data.effects && Array.isArray(data.effects)) {
+        handleLoadGeneratedTone(data.effects, data.presetName || 'AI Tweaked Rig', data.message || 'Pedal FX updated according to your request!');
+        setInlineAiPrompt('');
+      }
+    } catch (err: any) {
+      console.error('Inline AI tweak error:', err);
+      setAiRoadieMessage(`Error tweaking pedals: ${err.message || 'Try again'}`);
+    } finally {
+      setInlineAiLoading(false);
+    }
+  };
+
   // Available pedal types to add
   const addablePedals = [
     { type: 'distortion', label: 'Distortion' },
@@ -166,6 +225,19 @@ export default function GuitarigzStudio() {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-2">
+      {/* Visualizer & Rig Title Banner */}
+      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center gap-2">
+          <Zap className="h-5 w-5 text-amber-500 animate-pulse" />
+          <h2 className="font-display font-black text-base uppercase tracking-wider shimmer-text">
+            Visualize Virtual Amp Rigs & FX Stomp Chain
+          </h2>
+        </div>
+        <span className="text-[10px] font-mono text-slate-400 uppercase hidden sm:inline">
+          Live Tube Emulation + DSP Pedals
+        </span>
+      </div>
+
       {/* Dynamic Waveform Visualizer */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Visualizer and Live Settings panel */}
@@ -206,15 +278,20 @@ export default function GuitarigzStudio() {
             onToggleFavorite={handleToggleFavorite}
             onSaveCurrentPreset={handleSaveCurrentPreset}
             onDeletePreset={handleDeletePreset}
+            onImportPresets={handleImportPresets}
+            onResetDefaults={handleResetDefaults}
           />
         </div>
 
         {/* Dynamic Series Pedalboard + Adder Panel - Column 8 */}
         <div className="lg:col-span-8 flex flex-col gap-6 min-h-[580px]">
+          {/* Tube Amplifier Head & Cabinet Unit */}
+          <AmpSimulator onMessage={(msg) => setAiRoadieMessage(msg)} />
+
           {/* Active effects stomp deck */}
           <div className="bg-slate-950/40 border border-slate-850 rounded-3xl p-6 flex flex-col gap-6 shadow-md flex-1 relative overflow-hidden">
             {/* Header / Adder triggers */}
-            <div className="flex flex-col gap-3 border-b border-slate-850 pb-4">
+            <div className="flex flex-col gap-4 border-b border-slate-850 pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Volume2 className="h-4 w-4 text-amber-500" />
@@ -225,6 +302,72 @@ export default function GuitarigzStudio() {
                 <span className="text-[10px] font-mono text-slate-500">
                   CH: {effectsChain.length} / 6 PEDALS
                 </span>
+              </div>
+
+              {/* AI Natural Language FX Tweaker Bar */}
+              <div className="p-3 bg-slate-900/90 border border-amber-500/30 rounded-2xl flex flex-col gap-2 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-amber-500/20 text-amber-400 rounded-lg shrink-0">
+                    <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wide shrink-0">
+                    AI Pedal Tweaker:
+                  </span>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleInlineAiTweak();
+                    }}
+                    className="flex-1 flex gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={inlineAiPrompt}
+                      onChange={(e) => setInlineAiPrompt(e.target.value)}
+                      placeholder="e.g., 'Add heavy Hendrix fuzz with tape delay', 'Give me dynamic SRV blues overdrive', 'Make it a lush clean ambient space'..."
+                      disabled={inlineAiLoading}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 text-xs text-slate-100 placeholder:text-slate-500 px-3 py-1.5 rounded-xl font-medium focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={inlineAiLoading || !inlineAiPrompt.trim()}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                        inlineAiPrompt.trim() && !inlineAiLoading
+                          ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'
+                      }`}
+                    >
+                      {inlineAiLoading ? (
+                        <>
+                          <RotateCcw className="h-3 w-3 animate-spin" />
+                          <span>Tweaking...</span>
+                        </>
+                      ) : (
+                        <span>Tweak FX</span>
+                      )}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Quick AI Tweak preset chips */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[9px] font-mono text-slate-500 uppercase">Quick Tweaks:</span>
+                  {[
+                    { label: '🔥 Heavy Distortion & Delay', prompt: 'Heavy high-gain distortion with tight noise gate and 350ms tape delay' },
+                    { label: '🎸 Texas SRV Blues', prompt: 'Warm tube overdrive with mid boost, subtle spring reverb, and compressor' },
+                    { label: '🌊 Ambient Dreamy Space', prompt: 'Lush slow stereo chorus with massive hall reverb and dotted 8th delay' },
+                    { label: '✨ 80s Synth Funk', prompt: 'Funky envelope filter wah with fast phaser and punchy compressor' },
+                  ].map((chip) => (
+                    <button
+                      key={chip.label}
+                      disabled={inlineAiLoading}
+                      onClick={() => handleInlineAiTweak(chip.prompt)}
+                      className="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-slate-400 hover:text-amber-400 text-[10px] font-semibold rounded-lg transition-all cursor-pointer"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Add Pedal Select bar */}

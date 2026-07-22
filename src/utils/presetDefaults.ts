@@ -162,10 +162,99 @@ export function createDefaultEffect(type: string, enabled = true): Effect {
 
 export const DEFAULT_PRESETS: Preset[] = [
   {
+    id: 'blues-overdrive',
+    name: 'Blues Overdrive',
+    description: 'Classic Texas tube distortion with mid-range hump, warm optical compressor, and organic spring reverb.',
+    category: 'Blues',
+    favorite: true,
+    effects: [
+      {
+        ...createDefaultEffect('compressor', true),
+        parameters: [
+          { name: 'Threshold', value: 30, min: 0, max: 100, unit: 'dB' },
+          { name: 'Ratio', value: 3.5, min: 1, max: 20, unit: ':1' },
+          { name: 'Attack', value: 20, min: 1, max: 100, unit: 'ms' },
+          { name: 'Release', value: 120, min: 10, max: 1000, unit: 'ms' },
+        ],
+      },
+      {
+        ...createDefaultEffect('overdrive', true),
+        parameters: [
+          { name: 'Drive', value: 58, min: 0, max: 100, unit: '%' },
+          { name: 'Tone', value: 62, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('eq', true),
+        parameters: [
+          { name: 'Low', value: 55, min: 0, max: 100, unit: '%' },
+          { name: 'Mid', value: 68, min: 0, max: 100, unit: '%' },
+          { name: 'High', value: 58, min: 0, max: 100, unit: '%' },
+          { name: 'Presence', value: 52, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('reverb', true),
+        dryWet: 30,
+        parameters: [
+          { name: 'Size', value: 45, min: 0, max: 100, unit: '%' },
+          { name: 'Decay', value: 38, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 30, min: 0, max: 100, unit: '%' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'clean-jazz',
+    name: 'Clean Jazz Warmth',
+    description: 'Ultra-smooth archtop jazz tone with subtle compression, warm rolled-off EQ, and transparent chorus.',
+    category: 'Jazz',
+    favorite: true,
+    effects: [
+      {
+        ...createDefaultEffect('compressor', true),
+        parameters: [
+          { name: 'Threshold', value: 22, min: 0, max: 100, unit: 'dB' },
+          { name: 'Ratio', value: 2.8, min: 1, max: 20, unit: ':1' },
+          { name: 'Attack', value: 25, min: 1, max: 100, unit: 'ms' },
+          { name: 'Release', value: 180, min: 10, max: 1000, unit: 'ms' },
+        ],
+      },
+      {
+        ...createDefaultEffect('eq', true),
+        parameters: [
+          { name: 'Low', value: 68, min: 0, max: 100, unit: '%' },
+          { name: 'Mid', value: 58, min: 0, max: 100, unit: '%' },
+          { name: 'High', value: 38, min: 0, max: 100, unit: '%' },
+          { name: 'Presence', value: 30, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('chorus', true),
+        dryWet: 18,
+        parameters: [
+          { name: 'Rate', value: 18, min: 0, max: 100, unit: '%' },
+          { name: 'Depth', value: 30, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 20, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('reverb', true),
+        dryWet: 25,
+        parameters: [
+          { name: 'Size', value: 50, min: 0, max: 100, unit: '%' },
+          { name: 'Decay', value: 45, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 25, min: 0, max: 100, unit: '%' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'clean-ambient',
     name: 'Dreamy Ambient Space',
-    description: 'Ultra-lush ambient sound with compressor, chorus, tape delay, and massive hall reverb.',
+    description: 'Lush atmospheric pad with compressor, shimmering chorus, long tape delay, and deep hall reverb.',
     category: 'Ambient',
+    favorite: true,
     effects: [
       createDefaultEffect('compressor', true),
       {
@@ -180,90 +269,133 @@ export const DEFAULT_PRESETS: Preset[] = [
         ...createDefaultEffect('delay', true),
         dryWet: 45,
         parameters: [
-          { name: 'Time', value: 450, min: 50, max: 1500, unit: 'ms' },
-          { name: 'Feedback', value: 55, min: 0, max: 100, unit: '%' },
-          { name: 'Mix', value: 40, min: 0, max: 100, unit: '%' },
+          { name: 'Time', value: 480, min: 50, max: 1500, unit: 'ms' },
+          { name: 'Feedback', value: 60, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 45, min: 0, max: 100, unit: '%' },
         ],
       },
       {
         ...createDefaultEffect('reverb', true),
-        dryWet: 65,
+        dryWet: 70,
         parameters: [
-          { name: 'Size', value: 90, min: 0, max: 100, unit: '%' },
-          { name: 'Decay', value: 80, min: 0, max: 100, unit: '%' },
-          { name: 'Mix', value: 70, min: 0, max: 100, unit: '%' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'srv-blues',
-    name: 'Texas Blues Crunch',
-    description: 'Dynamic Overdrive, EQ scoop, and pulsing tremolo. Perfect for expressive blues licks.',
-    category: 'Blues',
-    effects: [
-      {
-        ...createDefaultEffect('overdrive', true),
-        parameters: [
-          { name: 'Drive', value: 55, min: 0, max: 100, unit: '%' },
-          { name: 'Tone', value: 65, min: 0, max: 100, unit: '%' },
-        ],
-      },
-      {
-        ...createDefaultEffect('eq', true),
-        parameters: [
-          { name: 'Low', value: 60, min: 0, max: 100, unit: '%' },
-          { name: 'Mid', value: 35, min: 0, max: 100, unit: '%' },
-          { name: 'High', value: 65, min: 0, max: 100, unit: '%' },
-          { name: 'Presence', value: 55, min: 0, max: 100, unit: '%' },
-        ],
-      },
-      {
-        ...createDefaultEffect('reverb', true),
-        dryWet: 25,
-        parameters: [
-          { name: 'Size', value: 45, min: 0, max: 100, unit: '%' },
-          { name: 'Decay', value: 40, min: 0, max: 100, unit: '%' },
-          { name: 'Mix', value: 30, min: 0, max: 100, unit: '%' },
+          { name: 'Size', value: 92, min: 0, max: 100, unit: '%' },
+          { name: 'Decay', value: 85, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 75, min: 0, max: 100, unit: '%' },
         ],
       },
     ],
   },
   {
     id: 'heavy-metal',
-    name: 'High-Gain Metallica',
-    description: 'Thick scooped-mid distortion boosted by overdrive, with a graphic EQ to tighten low end.',
+    name: 'Thrash Metal Chug',
+    description: 'Scooped high-gain distortion with overdrive boost and graphic EQ to eliminate low-end mud.',
     category: 'Metal',
     effects: [
       {
         ...createDefaultEffect('overdrive', true),
         parameters: [
-          { name: 'Drive', value: 25, min: 0, max: 100, unit: '%' },
-          { name: 'Tone', value: 70, min: 0, max: 100, unit: '%' },
+          { name: 'Drive', value: 22, min: 0, max: 100, unit: '%' },
+          { name: 'Tone', value: 75, min: 0, max: 100, unit: '%' },
         ],
       },
       {
         ...createDefaultEffect('distortion', true),
         parameters: [
-          { name: 'Gain', value: 80, min: 0, max: 100, unit: '%' },
-          { name: 'Tone', value: 55, min: 0, max: 100, unit: '%' },
+          { name: 'Gain', value: 82, min: 0, max: 100, unit: '%' },
+          { name: 'Tone', value: 52, min: 0, max: 100, unit: '%' },
         ],
       },
       {
         ...createDefaultEffect('eq', true),
         parameters: [
           { name: 'Low', value: 75, min: 0, max: 100, unit: '%' },
-          { name: 'Mid', value: 20, min: 0, max: 100, unit: '%' },
-          { name: 'High', value: 70, min: 0, max: 100, unit: '%' },
-          { name: 'Presence', value: 65, min: 0, max: 100, unit: '%' },
+          { name: 'Mid', value: 22, min: 0, max: 100, unit: '%' },
+          { name: 'High', value: 72, min: 0, max: 100, unit: '%' },
+          { name: 'Presence', value: 68, min: 0, max: 100, unit: '%' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'funk-groove',
+    name: '70s Funk Envelope Wah',
+    description: 'Snappy rhythmic wah envelope filter, punchy optical compression, and fluttering tremolo.',
+    category: 'Crunch',
+    effects: [
+      {
+        ...createDefaultEffect('compressor', true),
+        parameters: [
+          { name: 'Threshold', value: 45, min: 0, max: 100, unit: 'dB' },
+          { name: 'Ratio', value: 5, min: 1, max: 20, unit: ':1' },
+          { name: 'Attack', value: 5, min: 1, max: 100, unit: 'ms' },
+          { name: 'Release', value: 80, min: 10, max: 1000, unit: 'ms' },
+        ],
+      },
+      {
+        ...createDefaultEffect('wah', true),
+        parameters: [
+          { name: 'Position', value: 55, min: 0, max: 100, unit: '%' },
+          { name: 'Range', value: 85, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('tremolo', true),
+        dryWet: 40,
+        parameters: [
+          { name: 'Rate', value: 55, min: 0, max: 100, unit: '%' },
+          { name: 'Depth', value: 45, min: 0, max: 100, unit: '%' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'acoustic-sparkle',
+    name: 'Acoustic Folk Sparkle',
+    description: 'Bright piezo acoustic simulation with gentle studio compression, high-frequency EQ boost, and subtle room reverb.',
+    category: 'Acoustic',
+    effects: [
+      {
+        ...createDefaultEffect('compressor', true),
+        parameters: [
+          { name: 'Threshold', value: 28, min: 0, max: 100, unit: 'dB' },
+          { name: 'Ratio', value: 2.5, min: 1, max: 20, unit: ':1' },
+          { name: 'Attack', value: 12, min: 1, max: 100, unit: 'ms' },
+          { name: 'Release', value: 140, min: 10, max: 1000, unit: 'ms' },
+        ],
+      },
+      {
+        ...createDefaultEffect('eq', true),
+        parameters: [
+          { name: 'Low', value: 45, min: 0, max: 100, unit: '%' },
+          { name: 'Mid', value: 48, min: 0, max: 100, unit: '%' },
+          { name: 'High', value: 75, min: 0, max: 100, unit: '%' },
+          { name: 'Presence', value: 68, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('chorus', true),
+        dryWet: 15,
+        parameters: [
+          { name: 'Rate', value: 12, min: 0, max: 100, unit: '%' },
+          { name: 'Depth', value: 25, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 15, min: 0, max: 100, unit: '%' },
+        ],
+      },
+      {
+        ...createDefaultEffect('reverb', true),
+        dryWet: 30,
+        parameters: [
+          { name: 'Size', value: 40, min: 0, max: 100, unit: '%' },
+          { name: 'Decay', value: 35, min: 0, max: 100, unit: '%' },
+          { name: 'Mix', value: 30, min: 0, max: 100, unit: '%' },
         ],
       },
     ],
   },
   {
     id: 'gilmour-lead',
-    name: 'Comfortably Pink Lead',
-    description: 'Singing lead sustain using compressor, high distortion, and tape delay. Iconic stadium tone.',
+    name: 'Comfortably Stadium Lead',
+    description: 'Singing lead sustain using compressor, high distortion, and tape delay. Iconic stadium solo tone.',
     category: 'Lead',
     effects: [
       createDefaultEffect('compressor', true),
@@ -290,41 +422,6 @@ export const DEFAULT_PRESETS: Preset[] = [
           { name: 'Size', value: 60, min: 0, max: 100, unit: '%' },
           { name: 'Decay', value: 50, min: 0, max: 100, unit: '%' },
           { name: 'Mix', value: 35, min: 0, max: 100, unit: '%' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'clean-jazz',
-    name: 'Liquid Jazz Triad',
-    description: 'Clean acoustic-style tone with warm EQ, smooth compressor, and subtle chorus.',
-    category: 'Jazz',
-    effects: [
-      {
-        ...createDefaultEffect('compressor', true),
-        parameters: [
-          { name: 'Threshold', value: 25, min: 0, max: 100, unit: 'dB' },
-          { name: 'Ratio', value: 3, min: 1, max: 20, unit: ':1' },
-          { name: 'Attack', value: 15, min: 1, max: 100, unit: 'ms' },
-          { name: 'Release', value: 150, min: 10, max: 1000, unit: 'ms' },
-        ],
-      },
-      {
-        ...createDefaultEffect('eq', true),
-        parameters: [
-          { name: 'Low', value: 65, min: 0, max: 100, unit: '%' },
-          { name: 'Mid', value: 55, min: 0, max: 100, unit: '%' },
-          { name: 'High', value: 40, min: 0, max: 100, unit: '%' },
-          { name: 'Presence', value: 35, min: 0, max: 100, unit: '%' },
-        ],
-      },
-      {
-        ...createDefaultEffect('chorus', true),
-        dryWet: 20,
-        parameters: [
-          { name: 'Rate', value: 15, min: 0, max: 100, unit: '%' },
-          { name: 'Depth', value: 35, min: 0, max: 100, unit: '%' },
-          { name: 'Mix', value: 25, min: 0, max: 100, unit: '%' },
         ],
       },
     ],

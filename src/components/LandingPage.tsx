@@ -114,16 +114,31 @@ export default function LandingPage({ onStartSession }: LandingPageProps) {
               <Sparkles size={20} className="fill-slate-950" />
             </div>
             <div>
-              <h1 className="font-display font-black text-lg tracking-tight uppercase bg-gradient-to-r from-slate-100 via-amber-100 to-amber-400 bg-clip-text text-transparent">
-                Guitar Theory Flow
+              <h1 className="font-display font-black text-lg tracking-tight uppercase bg-gradient-to-r from-slate-100 via-amber-100 to-amber-400 bg-clip-text text-transparent shimmer-text">
+                Guitarigz: Theory & Flow
               </h1>
-              <p className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">
-                Interactive Music Studio
+              <p className="text-[10px] font-mono tracking-widest text-amber-400 uppercase">
+                http://guitarigz.xyz
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setEmail('admin@guitarigz.xyz');
+                setPassword('admin123');
+                setUsername('Guitarigz Admin');
+                setActiveForm('login');
+                const formElement = document.getElementById('auth-card');
+                formElement?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-3 py-1.5 bg-amber-500/15 border border-amber-500/40 hover:bg-amber-500/25 text-amber-400 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+              title="Quick sign-in as System Admin"
+            >
+              <ShieldCheck size={14} className="text-amber-400" />
+              <span>Admin Portal</span>
+            </button>
             <button
               onClick={() => {
                 setActiveForm('login');
@@ -140,7 +155,7 @@ export default function LandingPage({ onStartSession }: LandingPageProps) {
                 const formElement = document.getElementById('auth-card');
                 formElement?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md shadow-amber-500/10"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md shadow-amber-500/10 cursor-pointer"
             >
               Start Free
             </button>
@@ -230,14 +245,29 @@ export default function LandingPage({ onStartSession }: LandingPageProps) {
               </div>
 
               {/* Action Headers */}
-              <div className="mb-6">
-                <h3 className="font-display font-bold text-xl text-slate-100">
-                  {activeForm === 'signup' ? 'Join the Theory Flow Studio' : 'Welcome Back, Musician'}
-                </h3>
-                <p className="text-[11px] text-slate-450 mt-1">
+              <div className="mb-6 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display font-bold text-xl text-slate-100">
+                    {activeForm === 'signup' ? 'Join Guitarigz Studio' : 'Sign In to Guitarigz'}
+                  </h3>
+                  {activeForm === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('admin@guitarigz.xyz');
+                        setPassword('admin123');
+                        setUsername('Guitarigz Administrator');
+                      }}
+                      className="px-2 py-1 bg-amber-500/20 border border-amber-500/40 text-[10px] font-mono font-bold text-amber-400 rounded-lg hover:bg-amber-500/30 transition-all cursor-pointer"
+                    >
+                      Fill Admin: admin@guitarigz.xyz
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-450">
                   {activeForm === 'signup' 
-                    ? 'Unlock fully interactive scale trainers and ear modules.' 
-                    : 'Log in to continue customizing your tuner and tracking stats.'}
+                    ? 'Unlock fully interactive scale trainers, tube amps, and theory flow.' 
+                    : 'Log in to access your saved presets, tube rigs, and admin features.'}
                 </p>
               </div>
 
